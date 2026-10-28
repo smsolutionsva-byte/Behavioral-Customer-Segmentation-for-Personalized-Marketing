@@ -31,10 +31,15 @@ class RescueQueue:
             df['churn_risk_score'] = np.random.uniform(0, 100, len(df))
 
         # Proxy features for recency and engagement
-        recency = features_df.get('recency', np.random.uniform(0, 100, len(df)))
-        df['recency_percentile'] = pd.Series(recency).rank(pct=True) * 100
+        recency_col = 'recency_days' if 'recency_days' in features_df.columns else 'recency'
+        recency = features_df[recency_col] if recency_col in features_df.columns else pd.Series(0.0, index=df.index)
+        df['recency_percentile'] = pd.Series(recency, index=df.index).rank(pct=True) * 100
         
-        engagement = features_df.get('engagement_decline', np.random.uniform(0, 100, len(df)))
+        # engagement_decline_signal is a difference of two percentiles (-100..100); rescale to 0..100
+        if 'engagement_decline_signal' in features_df.columns:
+            engagement = (features_df['engagement_decline_signal'].clip(-100, 100) + 100) / 2
+        else:
+            engagement = pd.Series(50.0, index=df.index)
         df['engagement_decline'] = engagement
 
         # Filter high-risk customers
